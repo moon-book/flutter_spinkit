@@ -13,8 +13,14 @@ class SpinKitWave extends StatefulWidget {
     this.itemCount = 5,
     this.duration = const Duration(milliseconds: 1200),
     this.controller,
+    this.itemAlign,
+    this.itemWidth,
+    this.sizeRatio = 1.25,
+    this.itemAnimationDelayInterval = 0.1,
+    this.beginDelayTween,
   })  : assert(
-          !(itemBuilder is IndexedWidgetBuilder && color is Color) && !(itemBuilder == null && color == null),
+          !(itemBuilder is IndexedWidgetBuilder && color is Color) &&
+              !(itemBuilder == null && color == null),
           'You should specify either a itemBuilder or a color',
         ),
         assert(itemCount >= 2, 'itemCount Cant be less then 2 '),
@@ -22,24 +28,38 @@ class SpinKitWave extends StatefulWidget {
 
   final Color? color;
   final int itemCount;
+
+  /// height of item
   final double size;
   final SpinKitWaveType type;
   final IndexedWidgetBuilder? itemBuilder;
   final Duration duration;
   final AnimationController? controller;
+  final Alignment? itemAlign;
+
+  /// if specify it will less than or equal total item width / [itemCount]
+  final double? itemWidth;
+
+  /// ratio of total item width / item height
+  final double sizeRatio;
+  final double itemAnimationDelayInterval;
+  final double? beginDelayTween;
 
   @override
   State<SpinKitWave> createState() => _SpinKitWaveState();
 }
 
-class _SpinKitWaveState extends State<SpinKitWave> with SingleTickerProviderStateMixin {
+class _SpinKitWaveState extends State<SpinKitWave>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = (widget.controller ?? AnimationController(vsync: this, duration: widget.duration))..repeat();
+    _controller = (widget.controller ??
+        AnimationController(vsync: this, duration: widget.duration))
+      ..repeat();
   }
 
   @override
@@ -55,18 +75,22 @@ class _SpinKitWaveState extends State<SpinKitWave> with SingleTickerProviderStat
     final List<double> bars = getAnimationDelay(widget.itemCount);
     return Center(
       child: SizedBox.fromSize(
-        size: Size(widget.size * 1.25, widget.size),
+        size: Size(widget.size * widget.sizeRatio, widget.size),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(bars.length, (i) {
             return ScaleYWidget(
+              alignment: widget.itemAlign ?? Alignment.center,
               scaleY: DelayTween(
-                begin: .4,
+                begin: widget.beginDelayTween ?? .4,
                 end: 1.0,
                 delay: bars[i],
               ).animate(_controller),
               child: SizedBox.fromSize(
-                size: Size(widget.size / widget.itemCount, widget.size),
+                size: Size(
+                    _getItemWidth(
+                        widget.size * widget.sizeRatio / widget.itemCount),
+                    widget.size),
                 child: _itemBuilder(i),
               ),
             );
@@ -92,12 +116,15 @@ class _SpinKitWaveState extends State<SpinKitWave> with SingleTickerProviderStat
     return <double>[
       ...List<double>.generate(
         count ~/ 2,
-        (index) => -1.0 - (index * 0.1) - 0.1,
+        (index) => -1.0 - (index * 0.1) - widget.itemAnimationDelayInterval,
       ).reversed,
       if (count.isOdd) -1.0,
       ...List<double>.generate(
         count ~/ 2,
-        (index) => -1.0 + (index * 0.1) + (count.isOdd ? 0.1 : 0.0),
+        (index) =>
+            -1.0 +
+            (index * 0.1) +
+            (count.isOdd ? widget.itemAnimationDelayInterval : 0.0),
       ),
     ];
   }
@@ -133,6 +160,12 @@ class _SpinKitWaveState extends State<SpinKitWave> with SingleTickerProviderStat
   Widget _itemBuilder(int index) => widget.itemBuilder != null
       ? widget.itemBuilder!(context, index)
       : DecoratedBox(decoration: BoxDecoration(color: widget.color));
+
+  double _getItemWidth(double maxItemWidth) {
+    return (widget.itemWidth != null && widget.itemWidth! < maxItemWidth)
+        ? widget.itemWidth!
+        : maxItemWidth;
+  }
 }
 
 class ScaleYWidget extends AnimatedWidget {
